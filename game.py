@@ -17,7 +17,7 @@ class Game:
         
         # dictates which player is placing
         # % 2 = 0: 'o', % 2 = 1: 'x'
-        # used to call a tie: 9 -> tie
+        # used to call a tie: 8 -> tie
         self.turns = 0
 
     # Primary function for the class
