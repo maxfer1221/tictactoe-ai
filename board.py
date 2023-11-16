@@ -20,13 +20,20 @@ class Board:
         self.charmap["1"] = "x"
     
     # place an 'x' (1) or 'o' (0)
+    # private. in order to place from outside the class, use put_checked
     def __put(self, r, c, p):
         self.board[r][c] = p
 
+    # confirms that the spot is not taken up before placing
     def put_checked(self, r, c, p):
         # position already used up
         if not self.board[r][c] < 0:
             raise OccupiedSpaceException
+        # placing an invalid character
+        # if p != 0 and p != 1:
+        #     raise InvalidCharacterException
+        # ^^^^^^^ not implemented yet so leaving commented out
+        
         self.__put(r, c, p)
 
     # check if there is a win
