@@ -19,7 +19,7 @@ class Board:
         self.charmap["0"] = "o"
         self.charmap["1"] = "x"
     
-    # place an 'x' (1) or 'o' (-1)
+    # place an 'x' (1) or 'o' (0)
     def __put(self, r, c, p):
         self.board[r][c] = p
 
@@ -27,9 +27,7 @@ class Board:
         # position already used up
         if not self.board[r][c] < 0:
             raise OccupiedSpaceException
-        
-        else:
-            self.__put(r, c, p)
+        self.__put(r, c, p)
 
     # check if there is a win
     def win_on_board(self):
