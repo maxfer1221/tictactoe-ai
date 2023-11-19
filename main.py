@@ -1,20 +1,16 @@
 # example runner usage
 import random
+from neural.network import NeuralNetwork
 
-class Agent:
-    def __init__(self):
-        # ...
-        pass
+import torch
+device = (
+    "cuda"
+    if torch.cuda.is_available()
+    else "mps"
+    if torch.backends.mps.is_available()
+    else "cpu"
+)
 
-    def insert(self, _):
-        # ...
-        pass
-
-    def feed_forward(self):
-        return random.randint(0,8)
-
-from runner import Runner
-a1 = Agent()
-a2 = Agent()
-r = Runner([a1, a2])
-r.run()
+from training.gym import Gym
+gym = Gym(NeuralNetwork, device, popsize=80, seed=1)
+gym.train(save_path="/home/maximo/Documents/class/aiml/project/tictactoe/new_output/parent_")

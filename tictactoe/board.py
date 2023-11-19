@@ -59,6 +59,7 @@ class Board:
         print(f' {c(1,0)} | {c(1,1)} | {c(1,2)}')
         print("-----------")
         print(f' {c(2,0)} | {c(2,1)} | {c(2,2)}')
+        print("===========")
         
     def cast(self, p):
         return self.charmap[p]

@@ -8,7 +8,7 @@
 # See bottom for an explanation of this class's outputs
 #########################################################
 from common import * # common utils among the files
-from board import Board
+from tictactoe.board import Board
 
 class Game:
     def __init__(self):
@@ -47,6 +47,7 @@ class Game:
         return self.expect_next()
 
     def win(self):
+        # self.board.print()
         out = 0b0010
         if self.turns % 2 == 1:
             out += 0b0001
@@ -55,32 +56,48 @@ class Game:
         out <<= 18
         # add board bits to output
         out += self.board_to_bits()
+        # add "player turn" bits
+        out <<= 2
+        out += 0b01 if self.turns % 2 == 0 else 0b10
         # fix spacing (makes the leftmost 4 bits the output code)
-        out <<= 10
+        out <<= 8
 
         return out
 
     # see 'win' method for explanation
     def tie(self):
+        # self.board.print()
         out = 0b0001
         out <<= 18
         out += self.board_to_bits()
-        out <<= 10
+        out <<= 2
+        out += 0b01 if self.turns % 2 == 0 else 0b10
         
-        return out
+        return out << 8
     
     def expect_next(self):
         # commenting this since it doesn't change output
         # but the following is the parallel to the 'win' and 'tie' methods:
         # out = 0b0000
         # out <<= 18
-        return self.board_to_bits() << 10
+        out = self.board_to_bits() << 2
+        out += 0b01 if self.turns % 2 == 0 else 0b10
+
+        return out
 
     def err(self, e):
+        # self.board.print()
+        out = 0
         if e == OccupiedSpaceException:
-            return 0b0100 << 28
+            out = 0b0100 << 20
         else:
-            return 0b0101 << 28
+            out = 0b0101 << 20
+
+        out += 0b01 if self.turns % 2 == 0 else 0b10
+        out <<= 3
+        out += self.turns - 1
+        
+        return out << 5
 
     def board_to_bits(self):
         return self.board.to_bits()
@@ -88,11 +105,11 @@ class Game:
 #########################################################################################
 # Neural network output style, consists of a single integer (32 bits). 
 # Specification is as follows:
-# -----------------------------------------------------
-# |  CODE  |   Board State  | Player |    Reserved    | 
-# |  4-bit |      18-bit    | 2-bit  |      8-bit     |
-# |        | (2 per square) |        | (not used yet) |
-# -----------------------------------------------------
+# ------------------------------------------------------------------
+# |  CODE  |   Board State  | Player | Turn Count |    Reserved    | 
+# |  4-bit |      18-bit    | 2-bit  |    3-bit   |      5-bit     |
+# |        | (2 per square) |        |            | (not used yet) |
+# ------------------------------------------------------------------
 # Possible CODEs:
 #   - 0000:      OK , expects a move
 #   - 0001:      OK , game ended, tie
@@ -123,8 +140,13 @@ class Game:
 #   - 10: 'x'
 #   - 01: 'o'
 #   
+# Turn count:
+#   Indicates the number of turns taken - 1 (not including erroneous placements). 
+#   Used by the genetic algorithm to calculate punishment for erroneous placements.
+#   If a full game is played, this is ignored, so we only need 3 bits for this.
+#
 # Reserved:
-#   The last 8 bits are reserved in case we see a need for them later
+#   The last 5 bits are reserved in case we see a need for them later.
 #
 #
 # Interpretation of the data frame:
