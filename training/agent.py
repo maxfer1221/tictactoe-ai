@@ -1,10 +1,15 @@
 import torch
 
 class Agent:
-    def __init__(self, NeuralNetwork, device):
-        self.fitness = 0
+    def __init__(self, NeuralNetwork, device, **kwargs):
+        self.fitness = 0.000001
         self.device  = device
-        self.model   = NeuralNetwork().to(device)
+        model = kwargs.get("model", None)
+        if model is not None:
+            self.model = model
+        else:
+            self.model   = NeuralNetwork().to(device)
+        self.failed = False
 
     def predict(self, state):
         X = torch.tensor([state], device=self.device)

@@ -8,18 +8,18 @@ class Runner:
         # [ agent to play first, agent to play second ]
         self.agents = agents
 
-    def run(self): 
+    def run(self):
         agents = self.agents
         game = self.game
-        
+
         game_output = game.request_state(inc=False)
         decoded = self.decode(game_output)
 
         player = game.turns % 2
         while(decoded["cont"]):
-            net_out = agents[player].predict(board_to_arr(decoded["state"], swapped=(game.turns % 2 == 1)))
+            net_out = agents[player].predict(board_to_arr(decoded["state"], swapped=player == 1))
             decoded = self.decode(game.turn(net_out))
-            polayer = game.turns % 2
+            player = game.turns % 2
 
         return decoded
 
@@ -32,9 +32,9 @@ class Runner:
 
         CODE = game_output >> 28
         out["cont"] = CODE == 0b0000
-        if out["cont"]: 
+        if out["cont"]:
             return out
-        
+
         out["results"] = {
             "tie"  :  CODE == 0b0001,
             "o_win":  CODE == 0b0010,
@@ -46,7 +46,7 @@ class Runner:
                 out["err_type"] = OccupiedSpaceException
             else:
                 out["err_type"] = "unknown"
-        
+
         out["turn_count"] = ((game_output >> 5) & (0b111)) + 1
         # print(out["turn_count"])
 
@@ -74,5 +74,6 @@ def board_to_arr(bits, swapped=False):
     return arr
 
 def to_bit_arr(num, keep):
-    return [1.0 * ((num >> (keep - i - 1)) % 2) for i in range(keep)]
-
+    arr = [1.0 * ((num >> (keep - i - 1)) % 2) for i in range(keep)]
+    # print(arr)
+    return arr

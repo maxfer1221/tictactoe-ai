@@ -11,6 +11,14 @@ device = (
     else "cpu"
 )
 
+save_path = "/Users/maximo/Documents/Class/aiml/tictactoe-ai"
+
 from training.gym import Gym
-gym = Gym(NeuralNetwork, device, popsize=80, seed=1)
-gym.train(save_path="/home/maximo/Documents/class/aiml/project/tictactoe/new_output/parent_")
+gym = Gym(NeuralNetwork,
+    device=device,
+    save_path=save_path,
+    keep_elitism=1,
+    parent_selection_type="rws",
+    # crossover_type="uniform",
+    popsize=100)
+gym.train()
