@@ -82,8 +82,10 @@ class Game:
         # out <<= 18
         out = self.board_to_bits() << 2
         out += 0b01 if self.turns % 2 == 0 else 0b10
+        out <<= 3
+        out += self.turns - 1
 
-        return out
+        return out << 5
 
     def err(self, e):
         # self.board.print()
