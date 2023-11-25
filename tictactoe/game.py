@@ -14,7 +14,7 @@ class Game:
     def __init__(self):
         # initialize board
         self.board = Board()
-        
+
         # dictates which player is placing
         # % 2 = 0: 'o', % 2 = 1: 'x'
         # used to call a tie: 9 -> tie
@@ -31,9 +31,9 @@ class Game:
             self.board.put_checked(loc // 3, loc % 3, self.turns % 2)
         except OccupiedSpaceException as e:
             return self.err(OccupiedSpaceException)
-        
+
         return self.request_state(inc=True)
-    
+
     def request_state(self, inc=False):
         if self.board.win_on_board():
             return self.win()
@@ -47,7 +47,6 @@ class Game:
         return self.expect_next()
 
     def win(self):
-        # self.board.print()
         out = 0b0010
         if self.turns % 2 == 1:
             out += 0b0001
@@ -66,15 +65,13 @@ class Game:
 
     # see 'win' method for explanation
     def tie(self):
-        # self.board.print()
         out = 0b0001
         out <<= 18
         out += self.board_to_bits()
         out <<= 2
         out += 0b01 if self.turns % 2 == 0 else 0b10
-        
         return out << 8
-    
+
     def expect_next(self):
         # commenting this since it doesn't change output
         # but the following is the parallel to the 'win' and 'tie' methods:
@@ -82,11 +79,12 @@ class Game:
         # out <<= 18
         out = self.board_to_bits() << 2
         out += 0b01 if self.turns % 2 == 0 else 0b10
+        out <<= 3
+        out += self.turns - 1
+        return out << 5
 
-        return out
 
     def err(self, e):
-        # self.board.print()
         out = 0
         if e == OccupiedSpaceException:
             out = 0b0100 << 20
@@ -96,17 +94,16 @@ class Game:
         out += 0b01 if self.turns % 2 == 0 else 0b10
         out <<= 3
         out += self.turns - 1
-        
         return out << 5
 
     def board_to_bits(self):
         return self.board.to_bits()
 
 #########################################################################################
-# Neural network output style, consists of a single integer (32 bits). 
+# Neural network output style, consists of a single integer (32 bits).
 # Specification is as follows:
 # ------------------------------------------------------------------
-# |  CODE  |   Board State  | Player | Turn Count |    Reserved    | 
+# |  CODE  |   Board State  | Player | Turn Count |    Reserved    |
 # |  4-bit |      18-bit    | 2-bit  |    3-bit   |      5-bit     |
 # |        | (2 per square) |        |            | (not used yet) |
 # ------------------------------------------------------------------
@@ -117,7 +114,7 @@ class Game:
 #   - 0011:      OK , game ended, 'x' wins
 #   - 0100:      ERR, game ended, attempted to place 'x' or 'o' in occupied spot
 #   - 0101-1111: ERR, reserved for later
-#   
+#
 # Board State:
 #   - 00: square is empty
 #   - 10: 'x' placed
@@ -130,18 +127,18 @@ class Game:
 # Ex.:
 #
 #   x |   | o   -->   10 | 00 | 01  -->  100001
-#  -----------      -------------- 
+#  -----------      --------------
 #   o |   |     -->   01 | 00 | 00  -->  010000  -->  100001010000011010
-#  -----------      --------------   
-#   o | x | x   -->   01 | 10 | 10  -->  011010                 
+#  -----------      --------------
+#   o | x | x   -->   01 | 10 | 10  -->  011010
 #
-# Player: 
+# Player:
 #   Indicates if move is to be made by 'x' or 'o'
 #   - 10: 'x'
 #   - 01: 'o'
-#   
+#
 # Turn count:
-#   Indicates the number of turns taken - 1 (not including erroneous placements). 
+#   Indicates the number of turns taken - 1 (not including erroneous placements).
 #   Used by the genetic algorithm to calculate punishment for erroneous placements.
 #   If a full game is played, this is ignored, so we only need 3 bits for this.
 #
@@ -154,10 +151,10 @@ class Game:
 #   - An error is indicative of the network making a mistake. In this case
 #     we will punish the network to decrease it's opportunity to affect the
 #     next generation's offspring.
-#   - An OK code tells the game runner whether to reward the network, or ask 
+#   - An OK code tells the game runner whether to reward the network, or ask
 #     for a next move.
 #
-#   The board state and the 'Player' bits completely define the network's 
+#   The board state and the 'Player' bits completely define the network's
 #   behavior. We expect that the 20 bits will comprise the 20 input neurons
 #   for the network.
 #########################################################################################

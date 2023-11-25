@@ -4,8 +4,7 @@ from training.agent_random import AgentRandom
 import torch
 import numpy as np
 
-from collections.abc import Iterator
-from typing import Tuple, List
+from typing import Tuple
 class Runner:
     def __init__(self, agent, agent_first=True):
         self.game  = Game()
@@ -14,18 +13,13 @@ class Runner:
         self.agent_first = agent_first
         self.turn = 0 if agent_first else 1
 
-    def run_episode(self) -> Iterator[Tuple[Tuple, List[float]]]:
-        reward     = 20
+    def run_episode(self) -> Tuple[float, str]:
+        err_cnt    = 0
         decoded    = self.decode(self.game.request_state(inc=False))
-        log_probs  = []
         next_state = []
         state      = decoded["state"]
         board_arr  = board_to_arr(state, swapped=not    self.agent_first)
-
-        ep_length = 0
         while decoded["cont"]:
-            ep_length += 1
-
             # network is playing
             if self.turn % 2 == 0:
                 action_probs = self.agent.probs(board_arr).squeeze()
@@ -36,10 +30,7 @@ class Runner:
                 next_state = self.game.turn(action)
                 decoded = self.decode(next_state)
                 while decoded["err"]:
-                    reward -= 1
-                    new_episode_sample = (state, action, reward)
-                    yield new_episode_sample, log_probs
-
+                    err_cnt += 1
                     action = np.random.choice(np.arange(9), p=cpu_action_probs)
                     next_state = self.game.turn(action)
                     decoded = self.decode(next_state)
@@ -56,16 +47,12 @@ class Runner:
             self.turn += 1
 
         if decoded["results"]["tie"]:
-            reward += 5 if self.agent_first else 10
+            return err_cnt, "tie"
         if decoded["results"]["x_win"]:
-            reward += 15 if not self.agent_first else -10
+            return err_cnt, "win_scnd"
         if decoded["results"]["o_win"]:
-            reward += 10 if self.agent_first else -15
-
-        new_episode_sample = (self.game.request_state, None, reward)
-        yield new_episode_sample, log_probs
-        # print("agent playing ", "o" if self.agent_first else "x")
-        # decoded["board"].print()
+            return err_cnt, "win_frst"
+        return 0, " "
 
     def decode(self, game_output):
         out = {}

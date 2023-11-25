@@ -8,11 +8,10 @@ class Agent:
         if model is not None:
             self.model = model
         else:
-            self.model   = NeuralNetwork().to(device)
-        self.failed = False
+            self.model = NeuralNetwork().to(device)
 
-    def predict(self, state):
+    def probs(self, state):
         X = torch.tensor([state], device=self.device)
         logits = self.model(X)
         pred_probab = self.model.Softmax(dim=1)(logits)
-        return pred_probab.argmax(1)
+        return pred_probab
