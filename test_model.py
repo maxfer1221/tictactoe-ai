@@ -19,7 +19,7 @@ print(f"loaded model from\n{model_loc}\nrunning simulations...")
 
 from tests.test_runner import Runner
 from training.agent_random import AgentRandom
-game_count = 1000
+game_count = 10000
 
 err_cnt = 0
 results = {
@@ -47,6 +47,7 @@ for i in range(game_count):
             results[f"wins_f"] += 1
         else:
             results[f"loss_s"] += 1
-
+    elif r == "err":
+        results[f"loss_{suffix}"] += 1
 print("average num errors: ", err_cnt / game_count)
 print(results)

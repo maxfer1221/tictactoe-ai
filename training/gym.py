@@ -10,7 +10,9 @@ import random
 import numpy as np
 
 from tqdm import tqdm
+from threading import Thread
 
+import subprocess
 class Gym:
     def __init__(self, NeuralNetwork, **kwargs):
         # declare seed for RNGs
@@ -42,6 +44,8 @@ class Gym:
         if missing_path or missing_every:
             raise MissingPathorEveryException
 
+        self.test = kwargs.get("test", False)
+
     def train(self):
         lengths = []
         rewards = []
@@ -68,7 +72,7 @@ class Gym:
                 update_params(self.agent.model, lr  * G * gamma**t)
             self.generate_episode()
             if (ep_num % self.save_every == 0):
-                self.save_model(ep_num)
+                self.save_model(ep_num, test=self.test)
 
     # runs 1 game, going first/second is random
     def generate_episode(self):
@@ -77,10 +81,15 @@ class Gym:
         for v in r.run_episode():
             yield v
 
-    # def game_stats(self, game_cnt=100):
+    def thread_test(self, i):
+        process = subprocess.run(['python3', 'test_model.py', self.save_path+f"_{i}"], capture_output=True, text=True)
+        print(process.stdout)
 
-    def save_model(self, i):
+    def save_model(self, i, test=False):
         torch.save(self.agent.model.state_dict(), self.save_path+f"_{i}")
+        if test:
+            thread = Thread(target=self.thread_test, args=[i])
+            thread.start()
 
 from torch.autograd import grad
 def gradients_wrt_params(net, loss_tensor):

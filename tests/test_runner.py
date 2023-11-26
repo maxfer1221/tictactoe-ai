@@ -46,6 +46,8 @@ class Runner:
 
             self.turn += 1
 
+        if decoded["err"]:
+            return err_cnt, "err"
         if decoded["results"]["tie"]:
             return err_cnt, "tie"
         if decoded["results"]["x_win"]:

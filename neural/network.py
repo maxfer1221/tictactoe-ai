@@ -16,10 +16,10 @@ class NeuralNetwork(nn.Module):
         self.flatten = nn.Flatten()
         self.linear_relu_stack = nn.Sequential(
             nn.Linear(18, 15),
-            nn.Tanh(),
-            nn.Linear(15, 15),
-            nn.Tanh(),
-            nn.Linear(15, 9),
+            nn.ReLU(),
+            nn.Linear(15, 12),
+            nn.ReLU(),
+            nn.Linear(12, 9),
             nn.Softmax(dim=1),
         )
         self.Softmax = nn.Softmax

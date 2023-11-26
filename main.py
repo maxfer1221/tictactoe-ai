@@ -28,5 +28,6 @@ gym = Gym(NeuralNetwork,
     save_path=args.save_location,
     ep_count=args.game_count,
     save_every=args.save_every,
-    load=args.load)
+    load=args.load,
+    test=True)
 gym.train()
