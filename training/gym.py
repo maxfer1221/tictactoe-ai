@@ -158,7 +158,7 @@ def on_generation(gym, ga_instance):
                 model_dict[n] = []
                 for r in range(s[0]):
                     model_dict[n].append(weights[s_idx:s_idx + s[1]])
-                    s_idx += s[0]
+                    s_idx += s[1]
             else:
                 model_dict[n] = weights[s_idx:s_idx + s[0]]
                 s_idx += s[0]
