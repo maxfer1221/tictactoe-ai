@@ -30,6 +30,7 @@ results = {
     "ties_f": 0,
     "ties_s": 0,
 }
+print("running tests")
 for i in range(game_count):
     runner = Runner(agent, agent_first=i % 2 == 0)
     suffix = "f" if i % 2 == 0 else "s"

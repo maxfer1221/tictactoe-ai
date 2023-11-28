@@ -15,7 +15,7 @@ class Runner:
         self.turn = 0 if agent_first else 1
 
     def run_episode(self) -> Iterator[Tuple[Tuple, List[float]]]:
-        reward     = 0
+        reward     = 20
         decoded    = self.decode(self.game.request_state(inc=False))
         log_probs  = []
         next_state = []
@@ -32,10 +32,16 @@ class Runner:
                 action = np.random.choice(np.arange(9), p=cpu_action_probs)
                 next_state = self.game.turn(action)
                 decoded = self.decode(next_state)
-                if decoded["err"]:
-                    reward -= 5 # need to decide how much to punish errors
+                while decoded["err"]:
+                    reward -= 1
                     new_episode_sample = (state, action, reward)
-                    break
+                    yield new_episode_sample, log_probs
+
+                    action = np.random.choice(np.arange(9), p=cpu_action_probs)
+                    next_state = self.game.turn(action)
+                    decoded = self.decode(next_state)
+
+                reward += 1
 
                 new_episode_sample = (state, action, reward)
                 yield new_episode_sample, log_probs
@@ -52,11 +58,11 @@ class Runner:
             self.turn += 1
 
         if decoded["results"]["tie"]:
-            reward += 1 if self.agent_first else 2
+            reward += 5 if self.agent_first else 10
         if decoded["results"]["x_win"]:
-            reward += 3 if not self.agent_first else -2
+            reward += 15 if not self.agent_first else -10
         if decoded["results"]["o_win"]:
-            reward += 2 if self.agent_first else -3
+            reward += 10 if self.agent_first else -15
 
         decoded = self.decode(self.game.request_state(inc=False))
         new_episode_sample = (decoded["state"], None, reward)
