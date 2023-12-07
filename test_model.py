@@ -65,25 +65,26 @@ results = {
 print("running tests")
 for i, g in enumerate(game_db):
     runner = Runner(agent, agent_first=alternate(i), from_state=g)
-    suffix = "f" if alternate(i) else "s"
+    turn = "f" if alternate(i) else "s"
     out = runner.run()
     if out["err"]:
         err_cnt += 1
 
     if out["results"]["tie"]:
-        results[f"ties_{suffix}"] += 1
+        results[f"ties_{turn}"] += 1
     elif out["results"]["x_win"]:
-        if suffix == "s":
+        if turn == "s":
             results[f"wins_s"] += 1
         else:
             results[f"loss_f"] += 1
     elif out["results"]["o_win"]:
-        if suffix == "f":
+        if turn == "f":
             results[f"wins_f"] += 1
         else:
             results[f"loss_s"] += 1
-    elif out["err"]:
-        results[f"loss_{suffix}"] += 1
+    # elif out["err"]:
+    #     results[f"loss_{turn}"] += 1
+
 print("num errors: ", err_cnt)
 print(results)
 

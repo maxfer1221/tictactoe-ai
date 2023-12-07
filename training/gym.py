@@ -49,24 +49,24 @@ class Gym:
 
         # save information
         self.save_path = kg("save_path", "output")
-        self.save_every = kg("save_every", 10) # number of generations to wait till saving
+        self.save_every = int(kg("save_every", 10)) # number of generations to wait till saving
 
         # turn fitness and on-generation functions into lambdas for compliance with PyGAD structure
         fitness = lambda ga_instance,solution,solution_idx: self.fitness_func(ga_instance,solution,solution_idx)
         on_gen  = lambda g: on_generation(self, g)
         # for explanations of each parameter see
         # https://pygad.readthedocs.io/en/latest/pygad.html
-        self.ga = pygad.GA(num_generations=kg("num_generations", 10000),
+        self.ga = pygad.GA(num_generations=int(kg("num_generations", 10000)),
             initial_population=initial_population,
-            num_parents_mating=kg("num_parents_mating", 5),
+            num_parents_mating=int(kg("num_parents_mating", 5)),
             fitness_func=kg("fitness_function", fitness),
             sol_per_pop=kg("sol_per_pop", self.popsize),
             parent_selection_type=kg("parent_selection_type", "tournament"),
-            keep_parents=kg("keep_parents", -1),
-            keep_elitism=kg("keep_elitism", self.popsize // 20),
+            keep_parents=int(kg("keep_parents", -1)),
+            keep_elitism=int(kg("keep_elitism", self.popsize // 20)),
             crossover_type=kg("crossover_type", "uniform"),
             mutation_type=kg("mutation_type", "random"),
-            mutation_percent_genes=kg("mutation_percent_genes", 10),
+            mutation_percent_genes=int(kg("mutation_percent_genes", 10)),
             on_generation=on_gen,
             parallel_processing=['thread', self.thread_count])
 
@@ -96,10 +96,10 @@ class Gym:
         self.ga.run()
 
     def run_games(self, agent):
-        for i in range(self.game_count):
+        for g in self.games:
             # generate a game "runner" that handles game IO with the network
             # the runner makes the agent play against an AI playing completely random moves
-            r = Runner(agent, agent_first=True) # i%2 -> agent alternates between first and second
+            r = Runner(agent, agent_first=True, from_state=g) # i%2 -> agent alternates between first and second
             result = r.run()
 
             if not result["err"]:
@@ -171,11 +171,14 @@ def on_generation(gym, ga_instance):
     if gym.generation > 0:
         avg_fitness = numpy.mean(gym.fitnesses)
         max_fitness = max(gym.fitnesses)
+        # note: max fitness does not include the previous iterations. PyGAD
+        # doesn't compute the fitness of previous best-performers even if they are
+        # included in the population
         print(f"average fitness: {avg_fitness}, max fitness: {max_fitness}")
 
-    if gym.generation % gym.save_every:
-        gym.ga.save(gym.save_path)
-        print("models saved")
+        if gym.generation % gym.save_every == 0:
+            gym.ga.save(gym.save_path)
+            print("models saved")
 
     gym.fitnesses = []
     gym.results = []
