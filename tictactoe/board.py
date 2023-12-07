@@ -1,12 +1,11 @@
 from common import * # common utils among the files
 from collections import defaultdict
 
-
 class Board:
     # initialize the board
     def __init__(self):
         # integers must differ to allow for simple win-checking function:
-        #   win-check just checks if row, column, or diagonal 
+        #   win-check just checks if row, column, or diagonal
         #   contains equal entries
         self.board = [
             [-1,-2,-3],
@@ -18,18 +17,19 @@ class Board:
         self.charmap = defaultdict(lambda: " ")
         self.charmap["0"] = "o"
         self.charmap["1"] = "x"
-    
-    # place an 'x' (1) or 'o' (-1)
-    def __put(self, r, c, p):
+
+    # place an 'x' (1) or 'o' (0)
+    def put(self, r, c, p):
         self.board[r][c] = p
 
+    # place an 'x' (1) or 'o' (0), throw an error if space is occupied
     def put_checked(self, r, c, p):
         # position already used up
         if not self.board[r][c] < 0:
             raise OccupiedSpaceException
-        
+
         else:
-            self.__put(r, c, p)
+            self.put(r, c, p)
 
     # check if there is a win
     def win_on_board(self):
@@ -37,7 +37,7 @@ class Board:
         for r in range(3):
             if board[r][0] == board[r][1] == board[r][2]:
                 return True
-        
+
         for c in range(3):
             if board[0][c] == board[1][c] == board[2][c]:
                 return True
@@ -47,7 +47,7 @@ class Board:
 
         if board[0][2] == board[1][1] == board[2][0]:
             return True
-            
+
         return False
 
     def print(self):
@@ -60,7 +60,7 @@ class Board:
         print("-----------")
         print(f' {c(2,0)} | {c(2,1)} | {c(2,2)}')
         print("===========")
-        
+
     def cast(self, p):
         return self.charmap[p]
 
@@ -74,3 +74,12 @@ class Board:
                 elif self.board[r][c] == 1:
                     bits += 0b10
         return bits
+
+    # generate possible moves. used by one of the random-move agents
+    def gen_options(self):
+        pos = []
+        for (i,r) in enumerate(self.board):
+            for (j,x) in enumerate(r):
+                if x < 0:
+                    pos.append(i*3 + j)
+        return pos

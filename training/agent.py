@@ -1,5 +1,7 @@
 import torch
 
+# Agent class
+# wraps the neural network and adds a fitness
 class Agent:
     def __init__(self, NeuralNetwork, device, **kwargs):
         self.fitness = 0.000001
@@ -8,11 +10,10 @@ class Agent:
         if model is not None:
             self.model = model
         else:
-            self.model   = NeuralNetwork().to(device)
+            self.model = NeuralNetwork().to(device)
         self.failed = False
 
+    # essentially passes
     def predict(self, state):
         X = torch.tensor([state], device=self.device)
-        logits = self.model(X)
-        pred_probab = self.model.Softmax(dim=1)(logits)
-        return pred_probab.argmax(1)
+        return self.model(X).argmax(1)

@@ -12,41 +12,47 @@ from random import shuffle
 import pygad
 import pygad.torchga
 
+# used for multithreading
+import multiprocessing as mp
+
+# Gym class:
+# training module for the neural network. handles how the neural network trains
 class Gym:
     def __init__(self, NeuralNetwork, **kwargs):
+        def kg(x, y):
+            t = kwargs.get(x)
+            return y if t is None else t
+
         # declare seed for RNGs
-        seed = kwargs.get('seed', torch.rand(1))
+        seed = kg('seed', torch.rand(1))
         torch.manual_seed(seed)
 
-        # neural network to be used by gym
+        # neural network module to be used by gym
         self.NN = NeuralNetwork
-        template = self.NN().named_parameters()
-        # network parameter keys and sizes
-        # parameter_sizes[key] = size
-        self.parameter_sizes = {n:p.size() for n,p in template}
-
-        self.device = kwargs.get('device', None)
+        self.device = kg('device', None)
         if self.device is None:
             raise UndefinedDeviceException
 
+        # generation population information
+        self.popsize    = kg("popsize", 100)    # ignored if "load_from" is not None
+        self.game_count = int(kg("game_count", 200))
+        self.thread_count = min(kg("thread_count", mp.cpu_count()), mp.cpu_count())
+
         # load population from folder
-        load_from = kwargs.get('load_from', None)
+        load_from = kg('load_from', None)
         if load_from is not None:
-            self.population = load_agents(NeuralNetwork, self.device, load_from)
-            self.popsize = len(self.population)
+            ga = pygad.load(load_from)
+            initial_population = ga.population
+            self.popsize = len(ga.population)
         else:
-            self.popsize = kwargs.get("popsize", 100)
-            self.population = [Agent(NeuralNetwork, self.device) for _ in range(self.popsize)]
+            initial_population = torchga.TorchGA(self.NN(), num_solutions=self.popsize).population_weights
 
-        self.game_count = kwargs.get("game_count", 20)
-        self.save_path  = kwargs.get("save_path", None)
+        # save information
+        self.save_path = kg("save_path", "output")
+        self.save_every = kg("save_every", 10) # number of generations to wait till saving
 
-        kg = kwargs.get
-
-        initial_population = pygad.torchga.TorchGA(model=NeuralNetwork().linear_relu_stack,
-            num_solutions=self.popsize).population_weights
-
-        fitness = lambda _,__,solution_idx: self.fitness_func(solution_idx)
+        # turn fitness and on-generation functions into lambdas for compliance with PyGAD structure
+        fitness = lambda ga_instance,solution,solution_idx: self.fitness_func(ga_instance,solution,solution_idx)
         on_gen  = lambda g: on_generation(self, g)
         # for explanations of each parameter see
         # https://pygad.readthedocs.io/en/latest/pygad.html
@@ -55,126 +61,123 @@ class Gym:
             num_parents_mating=kg("num_parents_mating", 5),
             fitness_func=kg("fitness_function", fitness),
             sol_per_pop=kg("sol_per_pop", self.popsize),
-            num_genes=kg("num_genes", 9), # change this None once we know what it does
-            init_range_low=kg("init_range_low", -4.0),
-            init_range_high=kg("init_range_high", 4.0),
-            parent_selection_type=kg("parent_selection_type", "sss"),
+            parent_selection_type=kg("parent_selection_type", "tournament"),
             keep_parents=kg("keep_parents", -1),
             keep_elitism=kg("keep_elitism", self.popsize // 20),
-            crossover_type=kg("crossover_type", "single_point"),
+            crossover_type=kg("crossover_type", "uniform"),
             mutation_type=kg("mutation_type", "random"),
             mutation_percent_genes=kg("mutation_percent_genes", 10),
-            on_generation=on_gen)
+            on_generation=on_gen,
+            parallel_processing=['thread', self.thread_count])
 
+        # generation counter
         self.generation = 0
 
+        # information arrays
+        self.results   = []
+        self.fitnesses = []
+
+        # whether to use predetermined board states for training
+        game_states = kg("load_games", None)
+        if game_states is not None:
+            # used if specific games need to be played
+            import ast
+            with open(game_states,'r') as f:
+                self.game_db = ast.literal_eval(f.read())
+
+            game_index = kg("load_game_index", "0")
+            self.games = self.game_db[game_index]["games"]
+        else:
+            self.games = [0] * self.game_count
+
+    # function wrapper around the PyGAD training algorithm
     def train(self):
+        print("running generation 0...")
         self.ga.run()
-        self.ga.plot_fitness(title="PyGAD & PyTorch - Iteration vs. Fitness", linewidth=4)
 
-    def run_games(self):
-        l = self.popsize//2
-        # split generation in 2, face against each other
-        results = []
-        A, B = [], []
-        for g in range(self.game_count):
-            A, B = B, A
-            if g % l == 0:
-                shuffle(self.population)
-                A = self.population[:l]
-                B = self.population[l:]
+    def run_games(self, agent):
+        for i in range(self.game_count):
+            # generate a game "runner" that handles game IO with the network
+            # the runner makes the agent play against an AI playing completely random moves
+            r = Runner(agent, agent_first=True) # i%2 -> agent alternates between first and second
+            result = r.run()
 
-            for i, agent in enumerate(A):
-                adversary = B[(i + g) % l]
-                r = Runner([agent, adversary])
-                result = r.run()
-                results.append(result)
-                # result["board"].print()
-                self.score(result, agent, adversary)
+            if not result["err"]:
+                agent.fitness += 1
+                # agent goes first
+                # if i%2 == 0:
+                #     # winning as first is rewarded
+                #     if result["results"]["o_win"]:
+                #         agent.fitness += 1
+                #     # tying as second is OK
+                #     elif result["results"]["tie"]:
+                #         agent.fitness += 1
 
-        min_fit = min(self.population, key=lambda x: x.fitness).fitness
-        max_fit = max(self.population, key=lambda x: x.fitness).fitness
-        for a in self.population:
-            if max_fit > 0:
-                a.fitness = max(a.fitness,0)
-            else:
-                a.fitness += abs(min_fit)
+                # agent goes second
+                # else:
+                #     # winning as second is highly rewarded
+                #     if result["results"]["x_win"]:
+                #         agent.fitness += 6
+                #     # tying as second is also rewarded
+                #     elif result["results"]["tie"]:
+                #         agent.fitness += 3
 
-        avg_game_length = sum([result["turn_count"] for result in results])/len(results)
-        max_game_length = max(results, key=lambda x: x["turn_count"])["turn_count"]
-        print(f"average game length: {avg_game_length}, max game length: {max_game_length}")
+            # general fitness calculation
+            # if not result["err"]:
+            #     agent.fitness += 1
+            #     # agent goes first
+            #     if i%2 == 0:
+            #         # winning as first is rewarded
+            #         if result["results"]["o_win"]:
+            #             agent.fitness += 3
+            #         # tying as second is OK
+            #         elif result["results"]["tie"]:
+            #             agent.fitness += 1
 
-    def score(self, result, a, b):
-        if result["err"]:
-            if result["err_type"] == OccupiedSpaceException:
-                # [a,b][(result["last_played"] + 1) % 2].fitness -= 40 / (result["turn_count"]) ** 2
-                [a,b][(result["last_played"] + 1) % 2].failed = True
-                result["board"].print()
-                print(result["last_played"])
+            #     # agent goes second
+            #     else:
+            #         # winning as second is highly rewarded
+            #         if result["results"]["x_win"]:
+            #             agent.fitness += 6
+            #         # tying as second is also rewarded
+            #         elif result["results"]["tie"]:
+            #             agent.fitness += 3
 
-        elif result["results"]["tie"]:
-            a.fitness += 50
-            b.fitness += 100
+            # result array used for output printing
+            # self.results.append(result)
+        # normalize the fitness
+        agent.fitness /= len(self.games)
 
-        elif result["results"]["o_win"]:
-            a.fitness += 100
+    # fitness function to be used by the PyGAD genetic algorithm
+    def fitness_func(self, ga_instance, solution, solution_idx):
+        # convert the PyGAD solution types into pytorch models
+        nn = self.NN().to(self.device)
+        model_dict = torchga.model_weights_as_dict(model=nn.model, weights_vector=solution)
+        nn.model.load_state_dict(model_dict)
 
-        elif result["results"]["x_win"]:
-            a.fitness += 150
+        # agent object that stores fitness. used by the game runner
+        agent = Agent(self.NN, self.device, model=nn)
+        self.run_games(agent)
 
-    def fitness_func(self, solution_idx):
-        if self.population[solution_idx].failed:
-            return 0
-        return self.population[solution_idx].fitness
+        # print(agent.fitness)
+        # add fitness to array (used for intermediate printing)
+        self.fitnesses.append(agent.fitness)
 
-def save_models(models, path):
-    [torch.save(model.state_dict(), f"{path}{i}")
-        for i, model in enumerate(models)]
+        return agent.fitness
 
-import os
-def load_agents(NN, device, load_from):
-    agents = []
-    for filename in os.listdir(load_from):
-        f = os.path.join(load_from, filename)
-        # checking if it is a file
-        if os.path.isfile(f):
-            a = Agent(NN, device)
-            a.model.load_state_dict(torch.load(f))
-            agents.append(a)
-
-    print("loaded population from files")
-    return agents
-
-from collections import OrderedDict
 import numpy
+import pygad.torchga as torchga
 def on_generation(gym, ga_instance):
-    agents = []
-    # weights is a list of floats holding the tensor entries for our network
-    for weights in ga_instance.population:
-        model_dict = OrderedDict()
-        s_idx = 0
-        for n,s in gym.parameter_sizes.items():
-            if len(s) > 1:
-                model_dict[n] = []
-                for r in range(s[0]):
-                    model_dict[n].append(weights[s_idx:s_idx + s[1]])
-                    s_idx += s[1]
-            else:
-                model_dict[n] = weights[s_idx:s_idx + s[0]]
-                s_idx += s[0]
-            model_dict[n] = torch.tensor(numpy.array(model_dict[n]))
-        agent = Agent(gym.NN, gym.device)
-        agent.model.load_state_dict(model_dict)
-        agents.append(agent)
-    gym.population = agents
+    if gym.generation > 0:
+        avg_fitness = numpy.mean(gym.fitnesses)
+        max_fitness = max(gym.fitnesses)
+        print(f"average fitness: {avg_fitness}, max fitness: {max_fitness}")
 
+    if gym.generation % gym.save_every:
+        gym.ga.save(gym.save_path)
+        print("models saved")
+
+    gym.fitnesses = []
+    gym.results = []
     gym.generation += 1
     print(f"running generation {gym.generation}...")
-    gym.run_games() # run games and calculate fitness
-    gym.population.sort(key=lambda x: x.fitness, reverse=True)
-    print([a.fitness for a in gym.population[:5]])
-    print([a.fitness for a in gym.population[len(gym.population)-5:]])
-
-    if gym.save_path is not None and gym.generation % 10 == 0:
-        save_models([p.model for p in gym.population], gym.save_path)
-        print("models saved")

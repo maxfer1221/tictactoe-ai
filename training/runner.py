@@ -1,28 +1,43 @@
 from common import *
 from tictactoe.game import Game
+from training.agent_random import AgentRandom
 
+# Runner class
+# runs the tic tac toe matches. handles IO from the game
 class Runner:
-    def __init__(self, agents):
-        self.game = Game()
-        # we assume the agents are in the following order
-        # [ agent to play first, agent to play second ]
-        self.agents = agents
+    def __init__(self, agent, from_state=None, agent_first=True):
+        self.game  = Game()
+        self.agent = agent
+        self.ad    = AgentRandom()
+        self.agent_first = agent_first
+        if from_state != None:
+            self.game.set_state(from_state)
 
+    # runs the tic tac toe game
     def run(self):
-        agents = self.agents
+        agent = self.agent
         game = self.game
 
         game_output = game.request_state(inc=False)
         decoded = self.decode(game_output)
 
-        player = game.turns % 2
+        agent_turn = self.agent_first
+
+        # while the game is still going
         while(decoded["cont"]):
-            net_out = agents[player].predict(board_to_arr(decoded["state"], swapped=player == 1))
-            decoded = self.decode(game.turn(net_out))
-            player = game.turns % 2
+            if agent_turn:
+                # give game the network's chosen move
+                net_out = agent.predict(board_to_arr(decoded["state"], swapped=self.agent_first))
+                decoded = self.decode(game.turn(net_out))
+            else:
+                # give game a random (valid) move to play
+                move = self.ad.predict(board_to_arr(decoded["state"]))
+                decoded = self.decode(game.turn(move))
+            agent_turn = not agent_turn
 
         return decoded
 
+    # decodes the game output
     def decode(self, game_output):
         out = {}
 
@@ -47,15 +62,16 @@ class Runner:
             else:
                 out["err_type"] = "unknown"
 
-        out["turn_count"] = ((game_output >> 5) & (0b111)) + 1
-        # print(out["turn_count"])
+        out["turn_count"] = ((game_output >> 4) & (0b1111))
 
         player = (game_output >> 8) % 0b11
         out["last_played"] = 1 if player == 0b10 else 0
 
         out["board"] = self.game.board
+
         return out
 
+# helper functions to interpret the game output
 def board_to_arr(bits, swapped=False):
     out_bits = 0
     for i in range(1,10):
@@ -75,5 +91,4 @@ def board_to_arr(bits, swapped=False):
 
 def to_bit_arr(num, keep):
     arr = [1.0 * ((num >> (keep - i - 1)) % 2) for i in range(keep)]
-    # print(arr)
     return arr
