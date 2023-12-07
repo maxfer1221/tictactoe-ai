@@ -121,5 +121,5 @@ while conditional(len(games[f"{turn_count}"]["games"])):
         games[f"{turn_count}"]["games"].add(d["state"])
 
 print(f'{len(games[f"{turn_count}"]["games"])} games generated')
-with open('game_list.txt','w') as f:
+with open(args.location, 'w') as f:
    f.write(str(games))
