@@ -28,5 +28,4 @@ device = (
 from training.gym import Gym
 from neural.network import NeuralNetwork
 gym = Gym(NeuralNetwork, device=device, **vars(args))
-    # load_from="output")
 gym.train()
