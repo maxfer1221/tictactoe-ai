@@ -104,7 +104,7 @@ results = {
 }
 agent_random_falliable = AgentRandomFalliable()
 for i, g in enumerate(game_db):
-    runner = Runner(agent_random_falliable, agent_first=True, from_state=g)
+    runner = Runner(agent_random_falliable, agent_first=alternate(i), from_state=g)
     suffix = "f" if alternate(i) else "s"
     out = runner.run()
     if out["err"]:
