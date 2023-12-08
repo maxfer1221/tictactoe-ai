@@ -1,7 +1,6 @@
 from common import * # common utils among the files
 from collections import defaultdict
 
-
 class Board:
     # initialize the board
     def __init__(self):
@@ -19,17 +18,18 @@ class Board:
         self.charmap["0"] = "o"
         self.charmap["1"] = "x"
 
-    # place an 'x' (1) or 'o' (-1)
-    def __put(self, r, c, p):
+    # place an 'x' (1) or 'o' (0)
+    def put(self, r, c, p):
         self.board[r][c] = p
 
+    # place an 'x' (1) or 'o' (0), throw an error if space is occupied
     def put_checked(self, r, c, p):
         # position already used up
         if not self.board[r][c] < 0:
             raise OccupiedSpaceException
 
         else:
-            self.__put(r, c, p)
+            self.put(r, c, p)
 
     # check if there is a win
     def win_on_board(self):
@@ -74,3 +74,12 @@ class Board:
                 elif self.board[r][c] == 1:
                     bits += 0b10
         return bits
+
+    # generate possible moves. used by one of the random-move agents
+    def gen_options(self):
+        pos = []
+        for (i,r) in enumerate(self.board):
+            for (j,x) in enumerate(r):
+                if x < 0:
+                    pos.append(i*3 + j)
+        return pos

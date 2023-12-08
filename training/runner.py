@@ -35,7 +35,10 @@ class Runner:
                 action = np.random.choice(np.arange(9), p=cpu_action_probs)
                 next_state = self.game.turn(action)
                 decoded = self.decode(next_state)
-                while decoded["err"]:
+                turn_count = 0
+
+                while decoded["err"] and turn_count < 20:
+                    turn_count += 1
                     reward -= 1
                     new_episode_sample = (state, action, reward)
                     yield new_episode_sample, log_probs
@@ -64,8 +67,6 @@ class Runner:
 
         new_episode_sample = (self.game.request_state, None, reward)
         yield new_episode_sample, log_probs
-        # print("agent playing ", "o" if self.agent_first else "x")
-        # decoded["board"].print()
 
     def decode(self, game_output):
         out = {}

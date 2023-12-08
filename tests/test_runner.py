@@ -52,6 +52,7 @@ class Runner:
             return err_cnt, "win_scnd"
         if decoded["results"]["o_win"]:
             return err_cnt, "win_frst"
+
         return 0, " "
 
     def decode(self, game_output):

@@ -30,7 +30,18 @@ results = {
     "ties_f": 0,
     "ties_s": 0,
 }
-for i in range(game_count):
+
+probs = agent.probs([0.0] * 18).flatten()
+
+print(f" {round(probs[0].item(), 2)} | {round(probs[1].item(), 2)} | {round(probs[2].item(), 2)}")
+print(f"============")
+print(f" {round(probs[3].item(), 2)} | {round(probs[4].item(), 2)} | {round(probs[5].item(), 2)}")
+print(f"============")
+print(f" {round(probs[6].item(), 2)} | {round(probs[7].item(), 2)} | {round(probs[8].item(), 2)}")
+print(probs)
+
+from tqdm import tqdm
+for i in tqdm(range(game_count)):
     runner = Runner(agent, agent_first=i % 2 == 0)
     suffix = "f" if i % 2 == 0 else "s"
     e, r = runner.run_episode()

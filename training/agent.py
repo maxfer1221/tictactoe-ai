@@ -12,6 +12,4 @@ class Agent:
 
     def probs(self, state):
         X = torch.tensor([state], device=self.device)
-        logits = self.model(X)
-        pred_probab = self.model.Softmax(dim=1)(logits)
-        return pred_probab
+        return self.model(X)

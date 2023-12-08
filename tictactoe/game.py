@@ -20,12 +20,9 @@ class Game:
         # used to call a tie: 9 -> tie
         self.turns = 0
 
-    # Primary function for the class
-    # Parameters:
-    #   - loc: int (0-8) Indicates position on 3x3 to play:  0 1 2
-    # Returns:                                               3 4 5
-    #   - 32-bit int: Interpretation explained at bottom     6 7 8
-    #                 of file
+    # primary function for the class
+    #   - loc: int (0-8) indicates position on 3x3 to play
+    # returns a 32-bit int; explained at the end of the file
     def turn(self, loc):
         try:
             self.board.put_checked(loc // 3, loc % 3, self.turns % 2)
@@ -34,11 +31,16 @@ class Game:
 
         return self.request_state(inc=True)
 
+    # returns a state of the board. inc: whether to increment the turn count
     def request_state(self, inc=False):
         if self.board.win_on_board():
+            if inc:
+                self.turns += 1
             return self.win()
 
-        if self.turns == 8:
+        if inc and self.turns == 8:
+            if inc:
+                self.turns += 1
             return self.tie()
 
         if inc:
@@ -47,9 +49,10 @@ class Game:
         return self.expect_next()
 
     def win(self):
-        out = 0b0010
-        if self.turns % 2 == 1:
-            out += 0b0001
+        # game code
+        out = 0b0010 # assume 'o' won
+        if self.turns % 2 == 0:
+            out += 0b0001 # change to 'x' won
 
         # shift 18 bits to make space for game board
         out <<= 18
@@ -58,10 +61,10 @@ class Game:
         # add "player turn" bits
         out <<= 2
         out += 0b01 if self.turns % 2 == 0 else 0b10
-        # fix spacing (makes the leftmost 4 bits the output code)
-        out <<= 8
+        out <<= 4
+        out += self.turns
 
-        return out
+        return out << 4
 
     # see 'win' method for explanation
     def tie(self):
@@ -70,19 +73,18 @@ class Game:
         out += self.board_to_bits()
         out <<= 2
         out += 0b01 if self.turns % 2 == 0 else 0b10
-        return out << 8
+        out <<= 4
+        out += self.turns
+
+        return out << 4
 
     def expect_next(self):
-        # commenting this since it doesn't change output
-        # but the following is the parallel to the 'win' and 'tie' methods:
-        # out = 0b0000
-        # out <<= 18
         out = self.board_to_bits() << 2
         out += 0b01 if self.turns % 2 == 0 else 0b10
-        out <<= 3
-        out += self.turns - 1
-        return out << 5
+        out <<= 4
+        out += self.turns
 
+        return out << 4
 
     def err(self, e):
         out = 0
@@ -92,19 +94,37 @@ class Game:
             out = 0b0101 << 20
 
         out += 0b01 if self.turns % 2 == 0 else 0b10
-        out <<= 3
-        out += self.turns - 1
-        return out << 5
+        out <<= 4
+        out += self.turns
+
+        return out << 4
 
     def board_to_bits(self):
         return self.board.to_bits()
+
+    # used if we want to start the game at a certain position
+    def set_state(self, state):
+        self.turns = 0
+        for i in range(1, 10):
+            s = (state >> (18 - 2*i)) & 0b11
+            i = i-1
+            if s == 0b00:
+                continue
+            if s == 0b10:
+                self.board.put(i//3, i%3, 1)
+                self.turns += 1
+                continue
+            if s == 0b01:
+                self.board.put(i//3, i%3, 0)
+                self.turns += 1
+                continue
 
 #########################################################################################
 # Neural network output style, consists of a single integer (32 bits).
 # Specification is as follows:
 # ------------------------------------------------------------------
 # |  CODE  |   Board State  | Player | Turn Count |    Reserved    |
-# |  4-bit |      18-bit    | 2-bit  |    3-bit   |      5-bit     |
+# |  4-bit |      18-bit    | 2-bit  |    4-bit   |      5-bit     |
 # |        | (2 per square) |        |            | (not used yet) |
 # ------------------------------------------------------------------
 # Possible CODEs:
@@ -140,10 +160,9 @@ class Game:
 # Turn count:
 #   Indicates the number of turns taken - 1 (not including erroneous placements).
 #   Used by the genetic algorithm to calculate punishment for erroneous placements.
-#   If a full game is played, this is ignored, so we only need 3 bits for this.
 #
 # Reserved:
-#   The last 5 bits are reserved in case we see a need for them later.
+#   The last 4 bits are reserved in case we see a need for them later.
 #
 #
 # Interpretation of the data frame:
@@ -153,22 +172,4 @@ class Game:
 #     next generation's offspring.
 #   - An OK code tells the game runner whether to reward the network, or ask
 #     for a next move.
-#
-#   The board state and the 'Player' bits completely define the network's
-#   behavior. We expect that the 20 bits will comprise the 20 input neurons
-#   for the network.
 #########################################################################################
-
-# this is human readable output. used for testing
-def h_out(r, game):
-    if   r == "state":
-        game.board.print()
-    elif r == "input":
-        game.board.print()
-        print(f"where should {game.curr_symbol()} place?")
-    elif r == "win":
-        game.board.print()
-        print(f"{game.curr_symbol()} won")
-    elif r == "tie":
-        game.board.print()
-        print("tie")
