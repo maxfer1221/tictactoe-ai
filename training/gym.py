@@ -105,46 +105,46 @@ class Gym:
             if not result["err"]:
                 agent.fitness += 1
                 # agent goes first
-                # if i%2 == 0:
-                #     # winning as first is rewarded
-                #     if result["results"]["o_win"]:
-                #         agent.fitness += 1
-                #     # tying as second is OK
-                #     elif result["results"]["tie"]:
-                #         agent.fitness += 1
+                if i%2 == 0:
+                    # winning as first is rewarded
+                    if result["results"]["o_win"]:
+                        agent.fitness += 1
+                    # tying as second is OK
+                    elif result["results"]["tie"]:
+                        agent.fitness += 1
 
                 # agent goes second
-                # else:
-                #     # winning as second is highly rewarded
-                #     if result["results"]["x_win"]:
-                #         agent.fitness += 6
-                #     # tying as second is also rewarded
-                #     elif result["results"]["tie"]:
-                #         agent.fitness += 3
+                else:
+                    # winning as second is highly rewarded
+                    if result["results"]["x_win"]:
+                        agent.fitness += 6
+                    # tying as second is also rewarded
+                    elif result["results"]["tie"]:
+                        agent.fitness += 3
 
             # general fitness calculation
-            # if not result["err"]:
-            #     agent.fitness += 1
-            #     # agent goes first
-            #     if i%2 == 0:
-            #         # winning as first is rewarded
-            #         if result["results"]["o_win"]:
-            #             agent.fitness += 3
-            #         # tying as second is OK
-            #         elif result["results"]["tie"]:
-            #             agent.fitness += 1
+            if not result["err"]:
+                agent.fitness += 1
+                # agent goes first
+                if i%2 == 0:
+                    # winning as first is rewarded
+                    if result["results"]["o_win"]:
+                        agent.fitness += 3
+                    # tying as second is OK
+                    elif result["results"]["tie"]:
+                        agent.fitness += 1
 
-            #     # agent goes second
-            #     else:
-            #         # winning as second is highly rewarded
-            #         if result["results"]["x_win"]:
-            #             agent.fitness += 6
-            #         # tying as second is also rewarded
-            #         elif result["results"]["tie"]:
-            #             agent.fitness += 3
+                # agent goes second
+                else:
+                    # winning as second is highly rewarded
+                    if result["results"]["x_win"]:
+                        agent.fitness += 6
+                    # tying as second is also rewarded
+                    elif result["results"]["tie"]:
+                        agent.fitness += 3
 
             # result array used for output printing
-            # self.results.append(result)
+            self.results.append(result)
         # normalize the fitness
         agent.fitness /= len(self.games)
 
