@@ -9,5 +9,7 @@ The current runner uses agents that randomly select a spot on the board, and exi
 
 ### Made by
 Maximo Fernandez
+
 Gabriel Roca
+
 Darian Torres
